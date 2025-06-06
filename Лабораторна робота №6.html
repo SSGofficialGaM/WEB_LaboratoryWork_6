@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NELLO</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 20px; 
+        }
+        .filters, .active-filters { 
+            margin-bottom: 20px; 
+        }
+        .filters input, .filters select, .filters button { 
+            margin-right: 10px; 
+        }
+        .item { 
+            border: 1px solid #ccc; 
+            padding: 10px; 
+            margin-bottom: 10px; 
+        }
+        .active-filters span { 
+            margin-right: 10px; 
+            background: #f0f0f0; 
+            padding: 5px; 
+            border-radius: 4px; 
+        }
+        .active-filters span::after { 
+            content: ' ✖'; 
+            cursor: pointer; 
+        }
+    </style>
+</head>
+<body>
+    <h1>Магазин електроніки "NELLO"</h1>
+    
+    <div class="filters">
+        <input type="text" id="search" placeholder="Пошук...">
+        
+        <select id="categoryFilter">
+            <option value="">Всі категорії</option>
+            <option value="Смартфон">Смартфони</option>
+            <option value="Ноутбук">Ноутбуки</option>
+            <option value="Планшет">Планшети</option>
+        </select>
+        
+        <select id="brandFilter">
+            <option value="">Всі бренди</option>
+            <option value="Apple">Apple</option>
+            <option value="Samsung">Samsung</option>
+            <option value="Lenovo">Lenovo</option>
+        </select>
+        
+        <select id="sortBy">
+            <option value="name">Сортувати за назвою</option>
+            <option value="price">Сортувати за ціною</option>
+        </select>
+        
+        <button id="resetFilters">Скинути фільтри</button>
+    </div>
+    
+    <div class="active-filters" id="activeFilters"></div>
+
+    <div id="items-container"></div>
+
+    <script>
+        const items = [
+            { name: "iPhone 14", price: 39999, category: "Смартфон", brand: "Apple" },
+            { name: "Samsung Galaxy S23", price: 34999, category: "Смартфон", brand: "Samsung" },
+            { name: "MacBook Air", price: 59999, category: "Ноутбук", brand: "Apple" },
+            { name: "Lenovo ThinkPad", price: 45999, category: "Ноутбук", brand: "Lenovo" },
+            { name: "iPad Pro", price: 37999, category: "Планшет", brand: "Apple" },
+            { name: "Samsung Galaxy Tab", price: 29999, category: "Планшет", brand: "Samsung" },
+        ];
+
+        class FilterSystem {
+            constructor(data) {
+                this.originalData = data;
+                this.loadState();
+                this.bindEvents();
+                this.applyFilters();
+            }
+
+            bindEvents() {
+                document.getElementById('search').addEventListener('input', () => this.update());
+                document.getElementById('categoryFilter').addEventListener('change', () => this.update());
+                document.getElementById('brandFilter').addEventListener('change', () => this.update());
+                document.getElementById('sortBy').addEventListener('change', () => this.update());
+                document.getElementById('resetFilters').addEventListener('click', () => this.resetFilters());
+            }
+
+            update() {
+                this.saveState();
+                this.applyFilters();
+            }
+
+            applyFilters() {
+                const search = document.getElementById('search').value.toLowerCase();
+                const category = document.getElementById('categoryFilter').value;
+                const brand = document.getElementById('brandFilter').value;
+                const sort = document.getElementById('sortBy').value;
+
+                let filtered = this.originalData.filter(item => {
+                    return (!search || item.name.toLowerCase().includes(search)) &&
+                           (!category || item.category === category) &&
+                           (!brand || item.brand === brand);
+                });
+
+                this.showActiveFilters({ search, category, brand });
+
+                filtered = this.sortData(filtered, sort);
+                this.renderItems(filtered);
+            }
+
+            sortData(data, criterion) {
+                return data.sort((a, b) => {
+                    if (criterion === 'price') return a.price - b.price;
+                    return a.name.localeCompare(b.name);
+                });
+            }
+
+            renderItems(data) {
+                const container = document.getElementById('items-container');
+                container.innerHTML = '';
+                if (data.length === 0) {
+                    container.innerHTML = "<p>Нічого не знайдено</p>";
+                    return;
+                }
+                data.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'item';
+                    div.innerHTML = `<strong>${item.name}</strong><br>Категорія: ${item.category}<br>Бренд: ${item.brand}<br>Ціна: ${item.price} грн`;
+                    container.appendChild(div);
+                });
+            }
+
+            showActiveFilters(filters) {
+                const container = document.getElementById('activeFilters');
+                container.innerHTML = '';
+                for (const [key, value] of Object.entries(filters)) {
+                    if (value) {
+                        const span = document.createElement('span');
+                        span.textContent = `${this.translateKey(key)}: ${value}`;
+                        span.dataset.key = key;
+                        span.addEventListener('click', () => this.clearFilter(key));
+                        container.appendChild(span);
+                    }
+                }
+            }
+
+            translateKey(key) {
+                return {
+                    search: "Пошук",
+                    category: "Категорія",
+                    brand: "Бренд"
+                }[key] || key;
+            }
+
+            clearFilter(key) {
+                if (key === 'search') document.getElementById('search').value = '';
+                if (key === 'category') document.getElementById('categoryFilter').value = '';
+                if (key === 'brand') document.getElementById('brandFilter').value = '';
+                this.update();
+            }
+
+            resetFilters() {
+                document.getElementById('search').value = '';
+                document.getElementById('categoryFilter').value = '';
+                document.getElementById('brandFilter').value = '';
+                document.getElementById('sortBy').value = 'name';
+                this.saveState();
+                this.applyFilters();
+            }
+
+            saveState() {
+                const state = {
+                    search: document.getElementById('search').value,
+                    category: document.getElementById('categoryFilter').value,
+                    brand: document.getElementById('brandFilter').value,
+                    sort: document.getElementById('sortBy').value
+                };
+                localStorage.setItem('filterState', JSON.stringify(state));
+            }
+
+            loadState() {
+                const state = JSON.parse(localStorage.getItem('filterState'));
+                if (state) {
+                    document.getElementById('search').value = state.search || '';
+                    document.getElementById('categoryFilter').value = state.category || '';
+                    document.getElementById('brandFilter').value = state.brand || '';
+                    document.getElementById('sortBy').value = state.sort || 'name';
+                }
+            }
+        }
+
+        new FilterSystem(items);
+    </script>
+</body>
+</html>
